@@ -1,0 +1,65 @@
+{
+  "name": "recipe-share",
+  "version": "1.0.0",
+  "description": "Recipe sharing service - Monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:web": "pnpm --filter @recipe-share/web dev",
+    "dev:api": "pnpm --filter @recipe-share/api dev",
+    "build": "pnpm -r build",
+    "build:web": "pnpm --filter @recipe-share/web build",
+    "build:api": "pnpm --filter @recipe-share/api build",
+    "start": "pnpm -r --parallel start",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:up": "docker-compose up -d postgres redis",
+    "db:down": "docker-compose down",
+    "db:migrate": "pnpm --filter @recipe-share/api db:migrate",
+    "db:seed": "pnpm --filter @recipe-share/api db:seed",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "recipe",
+    "sharing",
+    "nextjs",
+    "nestjs",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "glob": ">=10.5.0",
+      "tar": ">=7.5.7",
+      "js-yaml": ">=4.1.1",
+      "lodash": ">=4.17.23",
+      "tmp": ">=0.2.4"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1"
+  },
+  "lint-staged": {
+    "apps/web/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "apps/api/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}
