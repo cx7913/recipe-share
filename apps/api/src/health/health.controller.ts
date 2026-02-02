@@ -29,7 +29,7 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       health.services.database = 'healthy';
-    } catch (error) {
+    } catch {
       health.services.database = 'unhealthy';
       health.status = 'degraded';
     }
@@ -38,7 +38,7 @@ export class HealthController {
     try {
       const pong = await this.redis.ping();
       health.services.redis = pong === 'PONG' ? 'healthy' : 'unhealthy';
-    } catch (error) {
+    } catch {
       health.services.redis = 'unhealthy';
       health.status = 'degraded';
     }
@@ -63,7 +63,8 @@ export class HealthController {
       await this.redis.ping();
       return { status: 'ready' };
     } catch (error) {
-      return { status: 'not ready', error: error.message };
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return { status: 'not ready', error: message };
     }
   }
 }

@@ -77,10 +77,7 @@ describe('LocalStorageService', () => {
       (fs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
       // 새로운 서비스 인스턴스 생성하여 테스트
-      const { Test: NestTest } = require('@nestjs/testing');
-      const { ConfigService } = require('@nestjs/config');
-
-      const module = await NestTest.createTestingModule({
+      const module = await Test.createTestingModule({
         providers: [
           LocalStorageService,
           {

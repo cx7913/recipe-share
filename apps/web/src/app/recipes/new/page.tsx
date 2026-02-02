@@ -3,8 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AxiosError } from 'axios';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+
+interface ApiError {
+  message?: string;
+}
 
 interface IngredientInput {
   name: string;
@@ -112,10 +117,11 @@ export default function NewRecipePage() {
         })),
       };
 
-      const response = await api.createRecipe(recipeData as any);
+      const response = await api.createRecipe(recipeData);
       router.push(`/recipes/${response.data.id}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || '레시피 생성에 실패했습니다.');
+    } catch (err) {
+      const error = err as AxiosError<ApiError>;
+      setError(error.response?.data?.message || '레시피 생성에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }

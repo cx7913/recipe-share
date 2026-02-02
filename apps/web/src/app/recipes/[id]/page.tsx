@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { Recipe } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +31,7 @@ export default function RecipeDetailPage() {
         setIsLoading(true);
         const response = await api.getRecipe(recipeId);
         setRecipe(response.data);
-      } catch (err: any) {
+      } catch {
         setError('레시피를 불러오는데 실패했습니다.');
       } finally {
         setIsLoading(false);
@@ -74,7 +75,7 @@ export default function RecipeDetailPage() {
     try {
       await api.deleteRecipe(recipeId);
       router.push('/recipes');
-    } catch (err) {
+    } catch {
       alert('레시피 삭제에 실패했습니다.');
     }
   };
@@ -123,10 +124,13 @@ export default function RecipeDetailPage() {
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {recipe.thumbnailUrl && (
             <div className="aspect-video relative">
-              <img
+              <Image
                 src={recipe.thumbnailUrl}
                 alt={recipe.title}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 1024px) 100vw, 896px"
+                className="object-cover"
+                priority
               />
             </div>
           )}
@@ -190,12 +194,14 @@ export default function RecipeDetailPage() {
 
             <div className="flex items-center justify-between border-t border-b py-4 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center relative overflow-hidden">
                   {recipe.author?.profileImage ? (
-                    <img
+                    <Image
                       src={recipe.author.profileImage}
                       alt={recipe.author.name}
-                      className="w-full h-full rounded-full object-cover"
+                      fill
+                      sizes="40px"
+                      className="rounded-full object-cover"
                     />
                   ) : (
                     <span className="text-gray-500 font-medium">
@@ -262,11 +268,15 @@ export default function RecipeDetailPage() {
                         <div className="flex-1">
                           <p className="text-gray-700">{step.description}</p>
                           {step.imageUrl && (
-                            <img
-                              src={step.imageUrl}
-                              alt={`Step ${step.order || index + 1}`}
-                              className="mt-2 rounded-lg max-w-md"
-                            />
+                            <div className="mt-2 relative aspect-video max-w-md">
+                              <Image
+                                src={step.imageUrl}
+                                alt={`Step ${step.order || index + 1}`}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 448px"
+                                className="rounded-lg object-cover"
+                              />
+                            </div>
                           )}
                         </div>
                       </li>
