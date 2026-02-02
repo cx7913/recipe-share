@@ -36,9 +36,9 @@ export default function RecipesPage() {
         }
         setHasMore(data.data.length === 12);
       }
-    } catch (err: any) {
+    } catch (err) {
       setError('레시피를 불러오는데 실패했습니다.');
-      console.error(err);
+      console.error('Failed to fetch recipes:', err);
     } finally {
       setIsLoading(false);
     }

@@ -3,7 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AxiosError } from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
+
+interface ApiError {
+  message?: string;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,8 +41,9 @@ export default function RegisterPage() {
     try {
       await register(formData.name, formData.email, formData.password);
       router.push('/recipes');
-    } catch (err: any) {
-      setError(err.response?.data?.message || '회원가입에 실패했습니다.');
+    } catch (err) {
+      const error = err as AxiosError<ApiError>;
+      setError(error.response?.data?.message || '회원가입에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }

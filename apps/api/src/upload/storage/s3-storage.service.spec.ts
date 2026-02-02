@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { S3StorageService } from './s3-storage.service';
 
 const mockSend = jest.fn();
@@ -101,8 +102,6 @@ describe('S3StorageService', () => {
 
   describe('getSignedUrl', () => {
     it('서명된 URL을 반환해야 한다', async () => {
-      const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-
       const result = await service.getSignedUrl('images/test.jpg');
 
       expect(getSignedUrl).toHaveBeenCalled();
@@ -110,8 +109,6 @@ describe('S3StorageService', () => {
     });
 
     it('커스텀 만료 시간을 설정할 수 있어야 한다', async () => {
-      const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-
       await service.getSignedUrl('images/test.jpg', 7200);
 
       expect(getSignedUrl).toHaveBeenCalledWith(

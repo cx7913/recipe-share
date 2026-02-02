@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Recipe } from '@/types';
 
 interface RecipeCardProps {
@@ -25,10 +26,12 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
       <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
         <div className="aspect-video bg-gray-200 relative">
           {recipe.thumbnailUrl ? (
-            <img
+            <Image
               src={recipe.thumbnailUrl}
               alt={recipe.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">

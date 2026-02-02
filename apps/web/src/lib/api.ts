@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import { CreateRecipeRequest } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -104,11 +105,11 @@ class ApiClient {
     return this.client.get(`/recipes/${id}`);
   }
 
-  async createRecipe(data: any) {
+  async createRecipe(data: Partial<CreateRecipeRequest>) {
     return this.client.post('/recipes', data);
   }
 
-  async updateRecipe(id: string, data: any) {
+  async updateRecipe(id: string, data: Partial<CreateRecipeRequest>) {
     return this.client.patch(`/recipes/${id}`, data);
   }
 
