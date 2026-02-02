@@ -1,0 +1,106 @@
+# ============================================
+# Docker Build Context Exclusions
+# Optimized for minimal build context
+# ============================================
+
+# Dependencies (installed in container)
+node_modules
+**/node_modules
+.pnpm-store
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+
+# Cache directories
+.cache
+**/.cache
+.swc
+**/.swc
+
+# Logs
+*.log
+logs
+**/logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (use docker-compose env)
+.env
+.env.*
+!.env.example
+
+# IDE and editors
+.idea
+.vscode
+*.swp
+*.swo
+*.sublime-*
+.project
+.classpath
+.settings
+
+# OS files
+.DS_Store
+Thumbs.db
+*.pem
+
+# Test & Coverage
+coverage
+**/coverage
+.nyc_output
+**/.nyc_output
+e2e/test-results
+e2e/playwright-report
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation (not needed for build)
+*.md
+!README.md
+docs/
+CHANGELOG*
+LICENSE*
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+.travis.yml
+azure-pipelines.yml
+Jenkinsfile
+
+# Kubernetes manifests
+k8s/
+
+# Development tools
+.husky
+.eslintcache
+.prettier*
+commitlint.config.js
+lint-staged.config.js
+*.tgz
+
+# Docker files (prevent recursive context)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+
+# Upload directory (mounted as volume)
+uploads
+**/uploads

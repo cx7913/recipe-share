@@ -1,0 +1,201 @@
+# Docker Compose for Development
+# Optimized for performance with BuildKit caching
+version: '3.8'
+
+# Enable BuildKit for better caching
+x-build-args: &build-args
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: recipe-share-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recipe_user
+      POSTGRES_PASSWORD: recipe_password
+      POSTGRES_DB: recipe_share
+      # Performance tuning for development
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - recipe-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U recipe_user -d recipe_share']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    # Resource limits for development
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================
+  # Redis Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: recipe-share-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - recipe-network
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================
+  # NestJS API (Backend)
+  # ============================================
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile.dev
+      target: development
+      # BuildKit cache configuration
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache
+      cache_to:
+        - type=local,dest=/tmp/.buildx-cache-new,mode=max
+    image: recipe-share-api:dev
+    container_name: recipe-share-api
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+      - '9229:9229'  # Node.js debugger port
+    volumes:
+      # Source code with cached consistency for better performance
+      - ./apps/api/src:/app/apps/api/src:cached
+      - ./apps/api/test:/app/apps/api/test:cached
+      # Prisma schema (delegated for write performance)
+      - ./apps/api/prisma:/app/apps/api/prisma:delegated
+      # Configuration files (read-only)
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json:ro
+      - ./apps/api/nest-cli.json:/app/apps/api/nest-cli.json:ro
+      # Upload directory
+      - ./uploads:/app/uploads:delegated
+      # Anonymous volumes for node_modules (prevent host override)
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      # Dist directory for build output
+      - api_dist:/app/apps/api/dist
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://recipe_user:recipe_password@postgres:5432/recipe_share?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=dev-jwt-secret-key-minimum-32-chars
+      - JWT_EXPIRES_IN=7d
+      - JWT_REFRESH_SECRET=dev-refresh-secret-key-min-32
+      - JWT_REFRESH_EXPIRES_IN=30d
+      - STORAGE_TYPE=local
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=10485760
+      - API_PORT=4000
+      - CORS_ORIGIN=http://localhost:3000
+    networks:
+      - recipe-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ============================================
+  # Next.js Web (Frontend)
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.dev
+      target: development
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache
+      cache_to:
+        - type=local,dest=/tmp/.buildx-cache-new,mode=max
+    image: recipe-share-web:dev
+    container_name: recipe-share-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      # Source code with cached consistency
+      - ./apps/web/src:/app/apps/web/src:cached
+      - ./apps/web/public:/app/apps/web/public:cached
+      # Configuration files (read-only)
+      - ./apps/web/next.config.ts:/app/apps/web/next.config.ts:ro
+      - ./apps/web/tsconfig.json:/app/apps/web/tsconfig.json:ro
+      - ./apps/web/tailwind.config.ts:/app/apps/web/tailwind.config.ts:ro
+      - ./apps/web/postcss.config.js:/app/apps/web/postcss.config.js:ro
+      # Anonymous volumes for node_modules
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      # Next.js cache (named volume for persistence)
+      - web_next_cache:/app/apps/web/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
+    networks:
+      - recipe-network
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  recipe-network:
+    driver: bridge
+    name: recipe-share-network
+
+# ============================================
+# Volumes - Optimized for development
+# ============================================
+volumes:
+  # Database volumes (persistent)
+  postgres_data:
+    name: recipe-share-postgres-data
+  redis_data:
+    name: recipe-share-redis-data
+
+  # Build cache volumes
+  api_dist:
+    name: recipe-share-api-dist
+  web_next_cache:
+    name: recipe-share-web-next-cache

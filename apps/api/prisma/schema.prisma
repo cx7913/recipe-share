@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  name         String
+  profileImage String?  @map("profile_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  recipes Recipe[]
+  likes   Like[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  recipes Recipe[]
+
+  @@map("categories")
+}
+
+model Recipe {
+  id           String     @id @default(uuid())
+  title        String
+  description  String
+  thumbnailUrl String?    @map("thumbnail_url")
+  cookingTime  Int        @map("cooking_time")
+  servings     Int
+  difficulty   Difficulty @default(MEDIUM)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  authorId   String    @map("author_id")
+  author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  categoryId String?   @map("category_id")
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  ingredients Ingredient[]
+  steps       Step[]
+  likes       Like[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([createdAt(sort: Desc)])
+  @@map("recipes")
+}
+
+model Ingredient {
+  id       String @id @default(uuid())
+  name     String
+  amount   String
+  unit     String
+  recipeId String @map("recipe_id")
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("ingredients")
+}
+
+model Step {
+  id          String  @id @default(uuid())
+  order       Int
+  description String
+  imageUrl    String? @map("image_url")
+  recipeId    String  @map("recipe_id")
+  recipe      Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("steps")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId   String @map("user_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String @map("recipe_id")
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipeId])
+  @@map("likes")
+}
+
+enum Difficulty {
+  EASY   @map("easy")
+  MEDIUM @map("medium")
+  HARD   @map("hard")
+}

@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1.4
+# ============================================
+# NestJS API Production Dockerfile
+# Multi-stage build optimized for minimal size
+# ============================================
+
+# ============================================
+# Base Stage - Common configuration
+# ============================================
+FROM node:20-alpine AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# ============================================
+# Dependencies Stage - Install all deps
+# ============================================
+FROM base AS deps
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+
+# Install all dependencies with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ============================================
+# Builder Stage - Build application
+# ============================================
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+
+# Copy source files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api ./apps/api
+
+# Generate Prisma client and build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter @recipe-share/api db:generate && \
+    pnpm --filter @recipe-share/api build
+
+# Prune dev dependencies
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm prune --prod
+
+# ============================================
+# Production Stage - Minimal runtime image
+# ============================================
+FROM node:20-alpine AS production
+
+# Security: Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nestjs
+
+WORKDIR /app
+
+# Copy only necessary files
+COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/apps/api/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/apps/api/prisma ./prisma
+
+# Create upload directory
+RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
+
+# Environment
+ENV NODE_ENV=production \
+    PORT=4000
+
+USER nestjs
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget -q --spider http://localhost:4000/health || exit 1
+
+CMD ["node", "dist/main.js"]

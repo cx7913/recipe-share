@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1.4
+# ============================================
+# NestJS API Development Dockerfile
+# Optimized for build caching and performance
+# ============================================
+FROM node:20-alpine AS base
+
+# Install pnpm with specific version for reproducibility
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# ============================================
+# Dependencies Stage
+# ============================================
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy package files first (better caching)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+
+# Install dependencies with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ============================================
+# Development Stage
+# ============================================
+FROM base AS development
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+
+# Copy Prisma schema for client generation
+COPY apps/api/prisma ./apps/api/prisma
+COPY apps/api/package.json ./apps/api/
+
+# Generate Prisma client
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter @recipe-share/api db:generate
+
+# Create directories and set permissions in single layer
+RUN mkdir -p /app/uploads /app/apps/api/dist \
+    && chown -R node:node /app
+
+# Copy start script
+COPY --chmod=755 docker/api/start-dev.sh /app/start-dev.sh
+
+# Use non-root user
+USER node
+
+# Expose port
+EXPOSE 4000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -q --spider http://localhost:4000/health || exit 1
+
+# Start development server
+CMD ["/app/start-dev.sh"]

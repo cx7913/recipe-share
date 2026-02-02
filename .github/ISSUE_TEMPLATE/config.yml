@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 질문하기
+    url: https://github.com/your-org/recipe-share/discussions
+    about: 기능 요청이나 버그 리포트가 아닌 일반적인 질문은 Discussions를 이용해 주세요.

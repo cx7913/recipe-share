@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1.4
+# ============================================
+# Next.js Web Development Dockerfile
+# Optimized for build caching and hot reload
+# ============================================
+FROM node:20-alpine AS base
+
+# Install pnpm with specific version for reproducibility
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# ============================================
+# Dependencies Stage
+# ============================================
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy package files first (better caching)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ============================================
+# Development Stage
+# ============================================
+FROM base AS development
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+
+# Copy config files needed for development
+COPY apps/web/package.json ./apps/web/
+COPY apps/web/tsconfig.json ./apps/web/
+COPY apps/web/tailwind.config.ts ./apps/web/
+COPY apps/web/postcss.config.js ./apps/web/
+
+# Create .next directory for caching
+RUN mkdir -p /app/apps/web/.next \
+    && chown -R node:node /app
+
+# Use non-root user
+USER node
+
+# Environment variables for development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+# Enable polling for Docker volume file watching
+ENV WATCHPACK_POLLING=true
+ENV CHOKIDAR_USEPOLLING=true
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -q --spider http://localhost:3000 || exit 1
+
+# Start development server with turbopack for faster HMR
+CMD ["pnpm", "--filter", "@recipe-share/web", "dev", "--turbopack"]
